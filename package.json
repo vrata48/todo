@@ -1,11 +1,12 @@
 {
-  "name": "todo-cloud-app",
+  "name": "todo",
   "version": "1.0.0",
   "description": "Cloud TODO app with authentication and PWA support",
   "main": "app-cloud.js",
   "scripts": {
     "start": "node app-cloud.js",
-    "dev": "nodemon app-cloud.js"
+    "dev": "nodemon app-cloud.js",
+    "local": "node app.js"
   },
   "dependencies": {
     "express": "^4.18.2"

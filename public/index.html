@@ -3,44 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Local TODO App</title>
+    <title>TODO</title>
     <link rel="stylesheet" href="styles.css">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#2563eb">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="TODO">
+
+    <!-- Favicon and App Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
-    <div class="container">
-        <h1>📝 Local TODO App</h1>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-form">
+            <h1>🔐 TODO Login</h1>
+            <div class="password-input-container">
+                <input type="password" id="passwordInput" class="password-input" placeholder="Enter your password..." />
+            </div>
+            <button onclick="login()" class="login-btn">Login</button>
+            <div id="loginError" class="error-message" style="display: none;"></div>
+        </div>
+    </div>
 
-        <div class="categories">
-            <div class="new-category">
-                <input type="text" id="categoryInput" placeholder="New category name..." />
-                <button onclick="createCategory()">Create Category</button>
+    <!-- Main App -->
+    <div id="mainApp" class="main-app" style="display: none;">
+        <div class="container">
+            <!-- App Header -->
+            <div class="app-header">
+                <h1>📝 TODO</h1>
+                <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
 
-            <div class="category-tabs" id="categoryTabs"></div>
-        </div>
+            <!-- Categories Section -->
+            <div class="categories">
+                <div class="new-category">
+                    <input type="text" id="categoryInput" placeholder="New category name..." />
+                    <button onclick="createCategory()">Create Category</button>
+                </div>
 
-        <div class="current-category" id="currentCategorySection" style="display: none;">
-            <h2 id="currentCategoryName" onclick="startRenameCategory()"></h2>
-            <button class="rename-btn" onclick="startRenameCategory()">Rename</button>
-            <button class="delete-category-btn" onclick="deleteCurrentCategory()">Delete Category</button>
-        </div>
+                <div class="category-tabs" id="categoryTabs"></div>
+            </div>
 
-        <div class="add-todo" id="todoSection" style="display: none;">
-            <input type="text" id="todoInput" placeholder="What needs to be done?" />
-            <button onclick="addTodo()">Add Todo</button>
-        </div>
+            <!-- Current Category Section -->
+            <div class="current-category" id="currentCategorySection" style="display: none;">
+                <h2 id="currentCategoryName" onclick="startRenameCategory()"></h2>
+                <button class="rename-btn" onclick="startRenameCategory()">Rename</button>
+                <button class="delete-category-btn" onclick="deleteCurrentCategory()">Delete Category</button>
+            </div>
 
-        <ul class="todo-list" id="todoList"></ul>
+            <!-- Add Todo Section -->
+            <div class="add-todo" id="todoSection" style="display: none;">
+                <input type="text" id="todoInput" placeholder="What needs to be done?" />
+                <button onclick="addTodo()">Add Todo</button>
+            </div>
 
-        <div class="stats" id="stats">
-            <span id="statsText"></span>
-            <button class="clear-completed-btn" id="clearCompletedBtn" onclick="clearCompleted()" disabled style="display: none;">
-                Clear Completed
-            </button>
+            <!-- Todo List -->
+            <ul class="todo-list" id="todoList"></ul>
+
+            <!-- Stats and Actions -->
+            <div class="stats" id="stats">
+                <span id="statsText"></span>
+                <button class="clear-completed-btn" id="clearCompletedBtn" onclick="clearCompleted()" disabled style="display: none;">
+                    Clear Completed
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
+        // Global variables
         let categories = [];
         let currentCategory = null;
         let todos = [];
@@ -48,15 +87,116 @@
         let editingId = null;
         let categoryCounts = {};
         let renamingCategory = false;
+        let authToken = null;
 
+        // Authentication functions
+        function getAuthToken() {
+            return localStorage.getItem('todoAuthToken');
+        }
+
+        function setAuthToken(token) {
+            authToken = token;
+            localStorage.setItem('todoAuthToken', token);
+        }
+
+        function clearAuthToken() {
+            authToken = null;
+            localStorage.removeItem('todoAuthToken');
+        }
+
+        async function login() {
+            const passwordInput = document.getElementById('passwordInput');
+            const errorDiv = document.getElementById('loginError');
+            const password = passwordInput.value.trim();
+
+            if (!password) {
+                showError('Please enter a password');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    setAuthToken(result.token);
+                    showMainApp();
+                    loadCategories();
+                } else {
+                    showError(result.error || 'Login failed');
+                }
+            } catch (error) {
+                showError('Connection error. Please try again.');
+                console.error('Login error:', error);
+            }
+        }
+
+        function logout() {
+            clearAuthToken();
+            showLoginScreen();
+            // Clear app state
+            categories = [];
+            currentCategory = null;
+            todos = [];
+            document.getElementById('categoryTabs').innerHTML = '';
+            document.getElementById('todoList').innerHTML = '';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showLoginScreen() {
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('passwordInput').value = '';
+        }
+
+        function showMainApp() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+        }
+
+        // Enhanced fetch with auth
+        async function authenticatedFetch(url, options = {}) {
+            const token = getAuthToken();
+            if (!token) {
+                logout();
+                throw new Error('No authentication token');
+            }
+
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                ...options.headers
+            };
+
+            const response = await fetch(url, { ...options, headers });
+
+            if (response.status === 401) {
+                logout();
+                throw new Error('Authentication expired');
+            }
+
+            return response;
+        }
+
+        // Category functions
         async function loadCategories() {
             try {
-                const response = await fetch('/api/categories');
+                const response = await authenticatedFetch('/api/categories');
                 categories = await response.json();
 
-                // Load counts for all categories
                 await loadAllCategoryCounts();
-
                 renderCategories();
 
                 if (categories.length > 0 && !currentCategory) {
@@ -71,7 +211,7 @@
             categoryCounts = {};
             for (const category of categories) {
                 try {
-                    const response = await fetch(`/api/todos/${category}`);
+                    const response = await authenticatedFetch(`/api/todos/${category}`);
                     const data = await response.json();
                     const todos = data.todos || [];
                     const completed = todos.filter(t => t.completed).length;
@@ -89,7 +229,6 @@
 
             if (name === '' || categories.includes(name)) return;
 
-            // Create empty category by saving empty todos
             await saveTodos(name, [], 1);
             input.value = '';
             await loadCategories();
@@ -98,7 +237,7 @@
 
         async function updateCategoryCount(category) {
             try {
-                const response = await fetch(`/api/todos/${category}`);
+                const response = await authenticatedFetch(`/api/todos/${category}`);
                 const data = await response.json();
                 const todos = data.todos || [];
                 const completed = todos.filter(t => t.completed).length;
@@ -115,10 +254,9 @@
 
             if (confirm(`Delete category "${currentCategory}" and all its todos?`)) {
                 try {
-                    await fetch(`/api/categories/${currentCategory}`, { method: 'DELETE' });
+                    await authenticatedFetch(`/api/categories/${currentCategory}`, { method: 'DELETE' });
                     await loadCategories();
 
-                    // Select first available category or clear view
                     if (categories.length > 0) {
                         selectCategory(categories[0]);
                     } else {
@@ -141,11 +279,26 @@
             document.getElementById('currentCategoryName').textContent = category;
         }
 
+        function renderCategories() {
+            const tabs = document.getElementById('categoryTabs');
+            tabs.innerHTML = categories.map(category => {
+                const counts = categoryCounts[category] || { open: 0, completed: 0, total: 0 };
+                return `
+                    <button class="category-tab ${category === currentCategory ? 'active' : ''}"
+                            onclick="selectCategory('${category}')">
+                        <div class="category-name">${category}</div>
+                        <div class="category-counts">${counts.open}/${counts.total}</div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        // Todo functions
         async function loadTodos() {
             if (!currentCategory) return;
 
             try {
-                const response = await fetch(`/api/todos/${currentCategory}`);
+                const response = await authenticatedFetch(`/api/todos/${currentCategory}`);
                 const data = await response.json();
                 todos = data.todos || [];
                 nextId = data.nextId || 1;
@@ -161,33 +314,18 @@
             if (!category) return;
 
             try {
-                await fetch(`/api/todos/${category}`, {
+                await authenticatedFetch(`/api/todos/${category}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ todos: todosToSave, nextId: nextIdToSave })
                 });
 
-                // Update category count after saving
                 if (category === currentCategory) {
                     await updateCategoryCount(category);
                 }
             } catch (error) {
                 console.error('Failed to save todos:', error);
             }
-        }
-
-        function renderCategories() {
-            const tabs = document.getElementById('categoryTabs');
-            tabs.innerHTML = categories.map(category => {
-                const counts = categoryCounts[category] || { open: 0, completed: 0, total: 0 };
-                return `
-                    <button class="category-tab ${category === currentCategory ? 'active' : ''}"
-                            onclick="selectCategory('${category}')">
-                        <div class="category-name">${category}</div>
-                        <div class="category-counts">${counts.open}/${counts.total}</div>
-                    </button>
-                `;
-            }).join('');
         }
 
         async function addTodo() {
@@ -230,11 +368,11 @@
             }
         }
 
+        // Edit functions
         function startEdit(id) {
             editingId = id;
             renderTodos();
 
-            // Focus on the input and select all text
             setTimeout(() => {
                 const input = document.querySelector('.todo-text.editing');
                 if (input) {
@@ -259,6 +397,7 @@
             renderTodos();
         }
 
+        // Rename category functions
         function startRenameCategory() {
             if (!currentCategory || renamingCategory) return;
 
@@ -271,7 +410,6 @@
                 onkeydown="if(event.key==='Enter') saveRenameCategory(this.value); if(event.key==='Escape') cancelRenameCategory()"
                 class="editing" style="border: none; background: transparent; font-size: inherit; font-weight: inherit; width: 100%;">`;
 
-            // Focus and select the input
             setTimeout(() => {
                 const input = nameElement.querySelector('input');
                 if (input) {
@@ -297,14 +435,13 @@
             }
 
             try {
-                const response = await fetch(`/api/categories/${currentCategory}`, {
+                const response = await authenticatedFetch(`/api/categories/${currentCategory}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ newName })
                 });
 
                 if (response.ok) {
-                    const oldCategory = currentCategory;
                     currentCategory = newName;
                     await loadCategories();
                     selectCategory(newName);
@@ -327,27 +464,22 @@
             document.getElementById('currentCategoryName').textContent = currentCategory;
         }
 
+        // Link conversion functions
         function createLinkCaption(url) {
             try {
                 const urlObj = new URL(url);
                 const domain = urlObj.hostname.replace('www.', '');
                 const path = urlObj.pathname;
 
-                // Special handling for common sites
                 if (domain.includes('atlassian.net')) {
-                    // Extract page title from Atlassian URLs
                     const pathParts = path.split('/');
                     if (pathParts.includes('browse')) {
-                        // Jira ticket
                         const ticketId = pathParts[pathParts.indexOf('browse') + 1];
                         return `Jira: ${ticketId}`;
                     } else if (pathParts.includes('wiki')) {
-                        // Confluence page - try to extract title from URL
                         let title = pathParts[pathParts.length - 1];
                         if (title && title !== 'wiki' && title !== 'spaces') {
-                            // Convert URL encoding and replace + with spaces
                             title = decodeURIComponent(title).replace(/\+/g, ' ');
-                            // Limit length
                             if (title.length > 40) {
                                 title = title.substring(0, 37) + '...';
                             }
@@ -358,7 +490,6 @@
                     return `Atlassian: ${domain}`;
                 }
 
-                // GitHub URLs
                 if (domain.includes('github.com')) {
                     const pathParts = path.split('/').filter(p => p);
                     if (pathParts.length >= 2) {
@@ -367,14 +498,10 @@
                     return 'GitHub';
                 }
 
-                // Generic domain-based captions
                 const domainParts = domain.split('.');
                 let siteName = domainParts[0];
-
-                // Capitalize first letter
                 siteName = siteName.charAt(0).toUpperCase() + siteName.slice(1);
 
-                // Add context if there's a meaningful path
                 if (path && path !== '/' && path.length > 1) {
                     const pathName = path.split('/').filter(p => p)[0];
                     if (pathName && pathName.length < 20) {
@@ -383,9 +510,7 @@
                 }
 
                 return siteName;
-
             } catch (error) {
-                // Fallback for invalid URLs
                 return url.length > 30 ? url.substring(0, 27) + '...' : url;
             }
         }
@@ -393,21 +518,18 @@
         function convertAllLinks(text) {
             let result = text;
 
-            // First, convert HTTP/HTTPS URLs to clickable links with captions
+            // Convert HTTP/HTTPS URLs to clickable links with captions
             result = result.replace(/(https?:\/\/[^\s]+)/g, (match, url) => {
                 const caption = createLinkCaption(url);
                 return `<a href="${url}" target="_blank" class="http-link" title="${url}">${caption}</a>`;
             });
 
-            // Then convert DEPM patterns that are NOT inside existing links
-            // Split by existing link tags and only process text outside of them
+            // Convert DEPM and DDS patterns
             const parts = result.split(/(<a[^>]*>.*?<\/a>)/);
             result = parts.map(part => {
-                // If this part is already a link, don't modify it
                 if (part.startsWith('<a ')) {
                     return part;
                 }
-                // Otherwise, convert DEPM and DDS patterns
                 return part.replace(/(?:DEPM|DDS)-(\d+)/g, (match, number) => {
                     const ticketType = match.split('-')[0];
                     return `<a href="https://infor.atlassian.net/browse/${ticketType}-${number}" target="_blank" class="depm-link">${ticketType}-${number}</a>`;
@@ -466,17 +588,59 @@
             statsText.innerHTML = `${completed} of ${total} completed`;
         }
 
-        // Event listeners
-        document.getElementById('categoryInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') createCategory();
-        });
-
-        document.getElementById('todoInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') addTodo();
-        });
-
         // Initialize app
-        loadCategories();
+        function initApp() {
+            const token = getAuthToken();
+            if (token) {
+                authToken = token;
+                showMainApp();
+                loadCategories();
+            } else {
+                showLoginScreen();
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Password input enter key
+            document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') login();
+            });
+
+            // Category input enter key
+            document.getElementById('categoryInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') createCategory();
+            });
+
+            // Todo input enter key
+            document.getElementById('todoInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addTodo();
+            });
+
+            // Initialize app
+            initApp();
+        });
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            console.log('PWA install available');
+        });
     </script>
 </body>
 </html>

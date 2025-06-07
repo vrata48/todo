@@ -1,23 +1,24 @@
 {
   "name": "todo",
   "version": "1.0.0",
-  "description": "Cloud TODO app with authentication and PWA support",
-  "main": "app-cloud.js",
+  "description": "Simple TODO app with categories, authentication and PWA support",
+  "main": "app-supabase.js",
   "scripts": {
-    "start": "node app-cloud.js",
-    "dev": "nodemon app-cloud.js",
-    "local": "node app.js"
+    "start": "node app-supabase.js",
+    "dev": "nodemon app-supabase.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["todo", "pwa", "cloud", "authentication"],
+  "keywords": ["todo", "pwa", "cloud", "authentication", "supabase"],
   "author": "",
   "license": "MIT",
   "engines": {
-    "node": "18.x"
+    "node": ">=18.x"
   }
 }

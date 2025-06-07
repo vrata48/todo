@@ -26,12 +26,12 @@ Set the following environment variables in your deployment platform:
 
 ### Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `APP_PASSWORD` | Login password for the app | `MySecurePass123` |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres...` |
-| `NODE_ENV` | Environment (optional) | `production` |
-| `PORT` | Server port (optional) | `3000` |
+| Variable | Description |
+|----------|-------------|
+| `APP_PASSWORD` | Login password for the app |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `NODE_ENV` | Environment (optional) |
+| `PORT` | Server port (optional) |
 
 ### Tech Stack
 
@@ -40,7 +40,3 @@ Set the following environment variables in your deployment platform:
 - **Frontend**: Vanilla HTML/CSS/JavaScript
 - **PWA**: Service Worker + Web App Manifest
 - **Authentication**: Simple token-based auth
-
-## License
-
-MIT License - feel free to use for personal or commercial projects.

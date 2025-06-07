@@ -14,48 +14,6 @@ A simple task management app that works everywhere. Built with Node.js, Express,
 - **Cloud Sync** - Access same todos from any device
 - **Offline Ready** - Works without internet connection
 
-## Quick Start
-
-### Prerequisites
-- Node.js 18+ 
-- PostgreSQL database (designed for Supabase)
-
-### Local Development
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/todo.git
-   cd todo
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Edit `.env` with your values:
-   ```env
-   APP_PASSWORD=your-secure-password
-   DATABASE_URL=your-postgresql-connection-string
-   ```
-
-4. **Start the app**
-   ```bash
-   npm start
-   ```
-
-5. **Open your browser**
-   ```
-   http://localhost:3000
-   ```
-
-The app will automatically create the required database tables on first run.
-
 ## Deployment
 
 This app is designed for **Render** deployment with **Supabase** as the database provider. Both offer generous free tiers perfect for personal use.
@@ -74,22 +32,6 @@ Set the following environment variables in your deployment platform:
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres...` |
 | `NODE_ENV` | Environment (optional) | `production` |
 | `PORT` | Server port (optional) | `3000` |
-
-### Smart Link Detection
-
-The app automatically converts:
-- **DEPM-1234** → Links to Jira tickets
-- **DDS-5678** → Links to Jira tickets  
-- **http://example.com** → Smart captions for URLs
-
-##️ Development
-
-### Available Scripts
-
-```bash
-npm start        # Start the server
-npm run dev      # Development with auto-restart
-```
 
 ### Tech Stack
 

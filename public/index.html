@@ -36,50 +36,63 @@
     <!-- Main App -->
     <div id="mainApp" class="main-app" style="display: none;">
         <div class="container">
-            <!-- App Header -->
-            <div class="app-header">
+            <!-- Header -->
+            <header class="app-header">
                 <h1>📝 TODO</h1>
                 <button class="logout-btn" onclick="logout()">Logout</button>
-            </div>
+            </header>
 
-            <!-- Categories Section -->
-            <div class="categories">
-                <div class="new-category">
+            <!-- Category Creation -->
+            <section class="category-creation">
+                <div class="input-group">
                     <input type="text" id="categoryInput" placeholder="New category name..." />
-                    <button onclick="createCategory()">Create Category</button>
+                    <button onclick="createCategory()" class="create-btn">Create Category</button>
                 </div>
+            </section>
 
+            <!-- Category Tabs -->
+            <section class="category-section">
                 <div class="category-tabs" id="categoryTabs"></div>
-            </div>
+            </section>
 
-            <!-- Current Category Section -->
-            <div class="current-category" id="currentCategorySection" style="display: none;">
-                <h2 id="currentCategoryName" onclick="startRenameCategory()"></h2>
-                <button class="rename-btn" onclick="startRenameCategory()">Rename</button>
-                <button class="delete-category-btn" onclick="deleteCurrentCategory()">Delete Category</button>
-            </div>
+            <!-- Current Category Management -->
+            <section class="category-management" id="categoryManagement" style="display: none;">
+                <div class="category-title">
+                    <h2 id="currentCategoryName" onclick="startRenameCategory()"></h2>
+                </div>
+                <div class="category-actions">
+                    <button class="rename-btn" onclick="startRenameCategory()">Rename</button>
+                    <button class="delete-btn" onclick="deleteCurrentCategory()">Delete</button>
+                </div>
+            </section>
 
-            <!-- Add Todo Section -->
-            <div class="add-todo" id="todoSection" style="display: none;">
-                <input type="text" id="todoInput" placeholder="What needs to be done?" />
-                <button onclick="addTodo()">Add Todo</button>
-            </div>
+            <!-- Todo Creation -->
+            <section class="todo-creation" id="todoCreation" style="display: none;">
+                <div class="input-group">
+                    <input type="text" id="todoInput" placeholder="What needs to be done?" />
+                    <button onclick="addTodo()" class="add-btn">Add Todo</button>
+                </div>
+            </section>
 
             <!-- Todo List -->
-            <ul class="todo-list" id="todoList"></ul>
+            <main class="todo-main">
+                <ul class="todo-list" id="todoList"></ul>
+            </main>
 
-            <!-- Stats and Actions -->
-            <div class="stats" id="stats">
-                <span id="statsText"></span>
-                <button class="clear-completed-btn" id="clearCompletedBtn" onclick="clearCompleted()" disabled style="display: none;">
-                    Clear Completed
-                </button>
-            </div>
+            <!-- Footer Stats -->
+            <footer class="app-footer">
+                <div class="stats-and-actions">
+                    <span class="stats-text" id="statsText"></span>
+                    <button class="clear-btn" id="clearCompletedBtn" onclick="clearCompleted()" disabled style="display: none;">
+                        Clear Completed
+                    </button>
+                </div>
+            </footer>
         </div>
     </div>
 
     <script>
-        // Global variables
+        // Global state
         let categories = [];
         let currentCategory = null;
         let todos = [];
@@ -126,7 +139,7 @@
                 if (result.success) {
                     setAuthToken(result.token);
                     showMainApp();
-                    loadCategories();
+                    await loadCategories();
                 } else {
                     showError(result.error || 'Login failed');
                 }
@@ -139,12 +152,18 @@
         function logout() {
             clearAuthToken();
             showLoginScreen();
-            // Clear app state
+            resetAppState();
+        }
+
+        function resetAppState() {
             categories = [];
             currentCategory = null;
             todos = [];
+            categoryCounts = {};
             document.getElementById('categoryTabs').innerHTML = '';
             document.getElementById('todoList').innerHTML = '';
+            document.getElementById('categoryManagement').style.display = 'none';
+            document.getElementById('todoCreation').style.display = 'none';
         }
 
         function showError(message) {
@@ -167,7 +186,7 @@
             document.getElementById('mainApp').style.display = 'block';
         }
 
-        // Enhanced fetch with auth
+        // API functions
         async function authenticatedFetch(url, options = {}) {
             const token = getAuthToken();
             if (!token) {
@@ -200,7 +219,7 @@
                 renderCategories();
 
                 if (categories.length > 0 && !currentCategory) {
-                    selectCategory(categories[0]);
+                    await selectCategory(categories[0]);
                 }
             } catch (error) {
                 console.error('Failed to load categories:', error);
@@ -232,20 +251,28 @@
             await saveTodos(name, [], 1);
             input.value = '';
             await loadCategories();
-            selectCategory(name);
+            await selectCategory(name);
         }
 
-        async function updateCategoryCount(category) {
-            try {
-                const response = await authenticatedFetch(`/api/todos/${category}`);
-                const data = await response.json();
-                const todos = data.todos || [];
-                const completed = todos.filter(t => t.completed).length;
-                const open = todos.length - completed;
-                categoryCounts[category] = { open, completed, total: todos.length };
-                renderCategories();
-            } catch (error) {
-                categoryCounts[category] = { open: 0, completed: 0, total: 0 };
+        async function selectCategory(category) {
+            currentCategory = category;
+            await loadTodos();
+            renderCategories();
+            updateCategoryUI();
+        }
+
+        function updateCategoryUI() {
+            const managementSection = document.getElementById('categoryManagement');
+            const todoSection = document.getElementById('todoCreation');
+            const categoryNameEl = document.getElementById('currentCategoryName');
+
+            if (currentCategory) {
+                managementSection.style.display = 'block';
+                todoSection.style.display = 'block';
+                categoryNameEl.textContent = currentCategory;
+            } else {
+                managementSection.style.display = 'none';
+                todoSection.style.display = 'none';
             }
         }
 
@@ -258,9 +285,10 @@
                     await loadCategories();
 
                     if (categories.length > 0) {
-                        selectCategory(categories[0]);
+                        await selectCategory(categories[0]);
                     } else {
                         currentCategory = null;
+                        updateCategoryUI();
                         renderTodos();
                     }
                 } catch (error) {
@@ -269,25 +297,17 @@
             }
         }
 
-        async function selectCategory(category) {
-            currentCategory = category;
-            await loadTodos();
-            renderCategories();
-
-            document.getElementById('currentCategorySection').style.display = 'flex';
-            document.getElementById('todoSection').style.display = 'flex';
-            document.getElementById('currentCategoryName').textContent = category;
-        }
-
         function renderCategories() {
             const tabs = document.getElementById('categoryTabs');
             tabs.innerHTML = categories.map(category => {
                 const counts = categoryCounts[category] || { open: 0, completed: 0, total: 0 };
+                const isActive = category === currentCategory;
                 return `
-                    <button class="category-tab ${category === currentCategory ? 'active' : ''}"
-                            onclick="selectCategory('${category}')">
-                        <div class="category-name">${category}</div>
-                        <div class="category-counts">${counts.open}/${counts.total}</div>
+                    <button class="category-tab ${isActive ? 'active' : ''}"
+                            onclick="selectCategory('${category}')"
+                            data-category="${category}">
+                        <span class="category-name">${category}</span>
+                        <span class="category-count">${counts.open}/${counts.total}</span>
                     </button>
                 `;
             }).join('');
@@ -307,6 +327,7 @@
                 console.error('Failed to load todos:', error);
                 todos = [];
                 nextId = 1;
+                renderTodos();
             }
         }
 
@@ -325,6 +346,20 @@
                 }
             } catch (error) {
                 console.error('Failed to save todos:', error);
+            }
+        }
+
+        async function updateCategoryCount(category) {
+            try {
+                const response = await authenticatedFetch(`/api/todos/${category}`);
+                const data = await response.json();
+                const todos = data.todos || [];
+                const completed = todos.filter(t => t.completed).length;
+                const open = todos.length - completed;
+                categoryCounts[category] = { open, completed, total: todos.length };
+                renderCategories();
+            } catch (error) {
+                categoryCounts[category] = { open: 0, completed: 0, total: 0 };
             }
         }
 
@@ -407,8 +442,8 @@
 
             nameElement.innerHTML = `<input type="text" value="${currentName}"
                 onblur="saveRenameCategory(this.value)"
-                onkeydown="if(event.key==='Enter') saveRenameCategory(this.value); if(event.key==='Escape') cancelRenameCategory()"
-                class="editing" style="border: none; background: transparent; font-size: inherit; font-weight: inherit; width: 100%;">`;
+                onkeydown="handleRenameKeydown(event, this.value)"
+                class="category-rename-input">`;
 
             setTimeout(() => {
                 const input = nameElement.querySelector('input');
@@ -417,6 +452,14 @@
                     input.select();
                 }
             }, 50);
+        }
+
+        function handleRenameKeydown(event, value) {
+            if (event.key === 'Enter') {
+                saveRenameCategory(value);
+            } else if (event.key === 'Escape') {
+                cancelRenameCategory();
+            }
         }
 
         async function saveRenameCategory(newName) {
@@ -444,7 +487,7 @@
                 if (response.ok) {
                     currentCategory = newName;
                     await loadCategories();
-                    selectCategory(newName);
+                    await selectCategory(newName);
                 } else {
                     const error = await response.json();
                     alert(error.error || 'Failed to rename category');
@@ -545,47 +588,51 @@
             const clearBtn = document.getElementById('clearCompletedBtn');
 
             if (!currentCategory) {
-                todoList.innerHTML = '<div class="empty-state">Select or create a category to start adding todos</div>';
-                statsText.innerHTML = '';
+                todoList.innerHTML = '<li class="empty-state">Select or create a category to start adding todos</li>';
+                statsText.textContent = '';
                 clearBtn.style.display = 'none';
                 return;
             }
 
             if (todos.length === 0) {
-                todoList.innerHTML = '<div class="empty-state">No todos in this category yet. Add one above!</div>';
-                statsText.innerHTML = '';
+                todoList.innerHTML = '<li class="empty-state">No todos in this category yet. Add one above!</li>';
+                statsText.textContent = '';
                 clearBtn.style.display = 'none';
                 return;
             }
 
             const completedCount = todos.filter(t => t.completed).length;
             const showClearBtn = completedCount > 0;
-            clearBtn.style.display = showClearBtn ? 'block' : 'none';
+            clearBtn.style.display = showClearBtn ? 'inline-block' : 'none';
             clearBtn.disabled = !showClearBtn;
 
             todoList.innerHTML = todos.map(todo => {
                 const isEditing = editingId === todo.id;
                 return `
                     <li class="todo-item ${todo.completed ? 'completed' : ''}">
-                        <input type="checkbox" class="todo-checkbox"
-                               ${todo.completed ? 'checked' : ''}
-                               onchange="toggleTodo(${todo.id})">
-                        ${isEditing ?
-                            `<input type="text" class="todo-text editing"
-                                    value="${todo.text}"
-                                    onblur="saveEdit(${todo.id}, this.value)"
-                                    onkeydown="if(event.key==='Enter') saveEdit(${todo.id}, this.value); if(event.key==='Escape') cancelEdit()">` :
-                            `<span class="todo-text" onclick="startEdit(${todo.id})">${convertAllLinks(todo.text)}</span>`
-                        }
-                        <button class="edit-btn" onclick="startEdit(${todo.id})">Edit</button>
-                        <button class="delete-btn" onclick="deleteTodo(${todo.id})">Delete</button>
+                        <div class="todo-content">
+                            <input type="checkbox" class="todo-checkbox"
+                                   ${todo.completed ? 'checked' : ''}
+                                   onchange="toggleTodo(${todo.id})">
+                            ${isEditing ?
+                                `<input type="text" class="todo-text editing"
+                                        value="${todo.text}"
+                                        onblur="saveEdit(${todo.id}, this.value)"
+                                        onkeydown="if(event.key==='Enter') saveEdit(${todo.id}, this.value); if(event.key==='Escape') cancelEdit()">` :
+                                `<span class="todo-text" onclick="startEdit(${todo.id})">${convertAllLinks(todo.text)}</span>`
+                            }
+                        </div>
+                        <div class="todo-actions">
+                            <button class="edit-btn" onclick="startEdit(${todo.id})" title="Edit">✏️</button>
+                            <button class="delete-btn" onclick="deleteTodo(${todo.id})" title="Delete">🗑️</button>
+                        </div>
                     </li>
                 `;
             }).join('');
 
             const completed = todos.filter(t => t.completed).length;
             const total = todos.length;
-            statsText.innerHTML = `${completed} of ${total} completed`;
+            statsText.textContent = `${completed} of ${total} completed`;
         }
 
         // Initialize app

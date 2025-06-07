@@ -1,0 +1,22 @@
+{
+  "name": "todo-cloud-app",
+  "version": "1.0.0",
+  "description": "Cloud TODO app with authentication and PWA support",
+  "main": "app-cloud.js",
+  "scripts": {
+    "start": "node app-cloud.js",
+    "dev": "nodemon app-cloud.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["todo", "pwa", "cloud", "authentication"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": "18.x"
+  }
+}

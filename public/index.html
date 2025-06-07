@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local TODO App</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📝 Local TODO App</h1>
+
+        <div class="categories">
+            <div class="new-category">
+                <input type="text" id="categoryInput" placeholder="New category name..." />
+                <button onclick="createCategory()">Create Category</button>
+            </div>
+
+            <div class="category-tabs" id="categoryTabs"></div>
+        </div>
+
+        <div class="current-category" id="currentCategorySection" style="display: none;">
+            <h2 id="currentCategoryName" onclick="startRenameCategory()"></h2>
+            <button class="rename-btn" onclick="startRenameCategory()">Rename</button>
+            <button class="delete-category-btn" onclick="deleteCurrentCategory()">Delete Category</button>
+        </div>
+
+        <div class="add-todo" id="todoSection" style="display: none;">
+            <input type="text" id="todoInput" placeholder="What needs to be done?" />
+            <button onclick="addTodo()">Add Todo</button>
+        </div>
+
+        <ul class="todo-list" id="todoList"></ul>
+
+        <div class="stats" id="stats">
+            <span id="statsText"></span>
+            <button class="clear-completed-btn" id="clearCompletedBtn" onclick="clearCompleted()" disabled style="display: none;">
+                Clear Completed
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let categories = [];
+        let currentCategory = null;
+        let todos = [];
+        let nextId = 1;
+        let editingId = null;
+        let categoryCounts = {};
+        let renamingCategory = false;
+
+        async function loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                categories = await response.json();
+
+                // Load counts for all categories
+                await loadAllCategoryCounts();
+
+                renderCategories();
+
+                if (categories.length > 0 && !currentCategory) {
+                    selectCategory(categories[0]);
+                }
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+            }
+        }
+
+        async function loadAllCategoryCounts() {
+            categoryCounts = {};
+            for (const category of categories) {
+                try {
+                    const response = await fetch(`/api/todos/${category}`);
+                    const data = await response.json();
+                    const todos = data.todos || [];
+                    const completed = todos.filter(t => t.completed).length;
+                    const open = todos.length - completed;
+                    categoryCounts[category] = { open, completed, total: todos.length };
+                } catch (error) {
+                    categoryCounts[category] = { open: 0, completed: 0, total: 0 };
+                }
+            }
+        }
+
+        async function createCategory() {
+            const input = document.getElementById('categoryInput');
+            const name = input.value.trim();
+
+            if (name === '' || categories.includes(name)) return;
+
+            // Create empty category by saving empty todos
+            await saveTodos(name, [], 1);
+            input.value = '';
+            await loadCategories();
+            selectCategory(name);
+        }
+
+        async function updateCategoryCount(category) {
+            try {
+                const response = await fetch(`/api/todos/${category}`);
+                const data = await response.json();
+                const todos = data.todos || [];
+                const completed = todos.filter(t => t.completed).length;
+                const open = todos.length - completed;
+                categoryCounts[category] = { open, completed, total: todos.length };
+                renderCategories();
+            } catch (error) {
+                categoryCounts[category] = { open: 0, completed: 0, total: 0 };
+            }
+        }
+
+        async function deleteCurrentCategory() {
+            if (!currentCategory) return;
+
+            if (confirm(`Delete category "${currentCategory}" and all its todos?`)) {
+                try {
+                    await fetch(`/api/categories/${currentCategory}`, { method: 'DELETE' });
+                    await loadCategories();
+
+                    // Select first available category or clear view
+                    if (categories.length > 0) {
+                        selectCategory(categories[0]);
+                    } else {
+                        currentCategory = null;
+                        renderTodos();
+                    }
+                } catch (error) {
+                    console.error('Failed to delete category:', error);
+                }
+            }
+        }
+
+        async function selectCategory(category) {
+            currentCategory = category;
+            await loadTodos();
+            renderCategories();
+
+            document.getElementById('currentCategorySection').style.display = 'flex';
+            document.getElementById('todoSection').style.display = 'flex';
+            document.getElementById('currentCategoryName').textContent = category;
+        }
+
+        async function loadTodos() {
+            if (!currentCategory) return;
+
+            try {
+                const response = await fetch(`/api/todos/${currentCategory}`);
+                const data = await response.json();
+                todos = data.todos || [];
+                nextId = data.nextId || 1;
+                renderTodos();
+            } catch (error) {
+                console.error('Failed to load todos:', error);
+                todos = [];
+                nextId = 1;
+            }
+        }
+
+        async function saveTodos(category = currentCategory, todosToSave = todos, nextIdToSave = nextId) {
+            if (!category) return;
+
+            try {
+                await fetch(`/api/todos/${category}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ todos: todosToSave, nextId: nextIdToSave })
+                });
+
+                // Update category count after saving
+                if (category === currentCategory) {
+                    await updateCategoryCount(category);
+                }
+            } catch (error) {
+                console.error('Failed to save todos:', error);
+            }
+        }
+
+        function renderCategories() {
+            const tabs = document.getElementById('categoryTabs');
+            tabs.innerHTML = categories.map(category => {
+                const counts = categoryCounts[category] || { open: 0, completed: 0, total: 0 };
+                return `
+                    <button class="category-tab ${category === currentCategory ? 'active' : ''}"
+                            onclick="selectCategory('${category}')">
+                        <div class="category-name">${category}</div>
+                        <div class="category-counts">${counts.open}/${counts.total}</div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        async function addTodo() {
+            const input = document.getElementById('todoInput');
+            const text = input.value.trim();
+
+            if (text === '' || !currentCategory) return;
+
+            todos.push({
+                id: nextId++,
+                text: text,
+                completed: false
+            });
+
+            input.value = '';
+            await saveTodos();
+            renderTodos();
+        }
+
+        async function toggleTodo(id) {
+            const todo = todos.find(t => t.id === id);
+            if (todo) {
+                todo.completed = !todo.completed;
+                await saveTodos();
+                renderTodos();
+            }
+        }
+
+        async function deleteTodo(id) {
+            todos = todos.filter(t => t.id !== id);
+            await saveTodos();
+            renderTodos();
+        }
+
+        async function clearCompleted() {
+            if (confirm('Delete all completed todos?')) {
+                todos = todos.filter(t => !t.completed);
+                await saveTodos();
+                renderTodos();
+            }
+        }
+
+        function startEdit(id) {
+            editingId = id;
+            renderTodos();
+
+            // Focus on the input and select all text
+            setTimeout(() => {
+                const input = document.querySelector('.todo-text.editing');
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }, 50);
+        }
+
+        async function saveEdit(id, newText) {
+            const todo = todos.find(t => t.id === id);
+            if (todo && newText.trim()) {
+                todo.text = newText.trim();
+                await saveTodos();
+            }
+            editingId = null;
+            renderTodos();
+        }
+
+        function cancelEdit() {
+            editingId = null;
+            renderTodos();
+        }
+
+        function startRenameCategory() {
+            if (!currentCategory || renamingCategory) return;
+
+            renamingCategory = true;
+            const nameElement = document.getElementById('currentCategoryName');
+            const currentName = nameElement.textContent;
+
+            nameElement.innerHTML = `<input type="text" value="${currentName}"
+                onblur="saveRenameCategory(this.value)"
+                onkeydown="if(event.key==='Enter') saveRenameCategory(this.value); if(event.key==='Escape') cancelRenameCategory()"
+                class="editing" style="border: none; background: transparent; font-size: inherit; font-weight: inherit; width: 100%;">`;
+
+            // Focus and select the input
+            setTimeout(() => {
+                const input = nameElement.querySelector('input');
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }, 50);
+        }
+
+        async function saveRenameCategory(newName) {
+            if (!currentCategory || !renamingCategory) return;
+
+            newName = newName.trim();
+            if (newName === '' || newName === currentCategory) {
+                cancelRenameCategory();
+                return;
+            }
+
+            if (categories.includes(newName)) {
+                alert('Category with this name already exists!');
+                cancelRenameCategory();
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/categories/${currentCategory}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newName })
+                });
+
+                if (response.ok) {
+                    const oldCategory = currentCategory;
+                    currentCategory = newName;
+                    await loadCategories();
+                    selectCategory(newName);
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Failed to rename category');
+                    cancelRenameCategory();
+                }
+            } catch (error) {
+                console.error('Failed to rename category:', error);
+                alert('Failed to rename category');
+                cancelRenameCategory();
+            }
+
+            renamingCategory = false;
+        }
+
+        function cancelRenameCategory() {
+            renamingCategory = false;
+            document.getElementById('currentCategoryName').textContent = currentCategory;
+        }
+
+        function createLinkCaption(url) {
+            try {
+                const urlObj = new URL(url);
+                const domain = urlObj.hostname.replace('www.', '');
+                const path = urlObj.pathname;
+
+                // Special handling for common sites
+                if (domain.includes('atlassian.net')) {
+                    // Extract page title from Atlassian URLs
+                    const pathParts = path.split('/');
+                    if (pathParts.includes('browse')) {
+                        // Jira ticket
+                        const ticketId = pathParts[pathParts.indexOf('browse') + 1];
+                        return `Jira: ${ticketId}`;
+                    } else if (pathParts.includes('wiki')) {
+                        // Confluence page - try to extract title from URL
+                        let title = pathParts[pathParts.length - 1];
+                        if (title && title !== 'wiki' && title !== 'spaces') {
+                            // Convert URL encoding and replace + with spaces
+                            title = decodeURIComponent(title).replace(/\+/g, ' ');
+                            // Limit length
+                            if (title.length > 40) {
+                                title = title.substring(0, 37) + '...';
+                            }
+                            return `Wiki: ${title}`;
+                        }
+                        return `Confluence Wiki`;
+                    }
+                    return `Atlassian: ${domain}`;
+                }
+
+                // GitHub URLs
+                if (domain.includes('github.com')) {
+                    const pathParts = path.split('/').filter(p => p);
+                    if (pathParts.length >= 2) {
+                        return `GitHub: ${pathParts[0]}/${pathParts[1]}`;
+                    }
+                    return 'GitHub';
+                }
+
+                // Generic domain-based captions
+                const domainParts = domain.split('.');
+                let siteName = domainParts[0];
+
+                // Capitalize first letter
+                siteName = siteName.charAt(0).toUpperCase() + siteName.slice(1);
+
+                // Add context if there's a meaningful path
+                if (path && path !== '/' && path.length > 1) {
+                    const pathName = path.split('/').filter(p => p)[0];
+                    if (pathName && pathName.length < 20) {
+                        return `${siteName}: ${pathName}`;
+                    }
+                }
+
+                return siteName;
+
+            } catch (error) {
+                // Fallback for invalid URLs
+                return url.length > 30 ? url.substring(0, 27) + '...' : url;
+            }
+        }
+
+        function convertAllLinks(text) {
+            let result = text;
+
+            // First, convert HTTP/HTTPS URLs to clickable links with captions
+            result = result.replace(/(https?:\/\/[^\s]+)/g, (match, url) => {
+                const caption = createLinkCaption(url);
+                return `<a href="${url}" target="_blank" class="http-link" title="${url}">${caption}</a>`;
+            });
+
+            // Then convert DEPM patterns that are NOT inside existing links
+            // Split by existing link tags and only process text outside of them
+            const parts = result.split(/(<a[^>]*>.*?<\/a>)/);
+            result = parts.map(part => {
+                // If this part is already a link, don't modify it
+                if (part.startsWith('<a ')) {
+                    return part;
+                }
+                // Otherwise, convert DEPM and DDS patterns
+                return part.replace(/(?:DEPM|DDS)-(\d+)/g, (match, number) => {
+                    const ticketType = match.split('-')[0];
+                    return `<a href="https://infor.atlassian.net/browse/${ticketType}-${number}" target="_blank" class="depm-link">${ticketType}-${number}</a>`;
+                });
+            }).join('');
+
+            return result;
+        }
+
+        function renderTodos() {
+            const todoList = document.getElementById('todoList');
+            const statsText = document.getElementById('statsText');
+            const clearBtn = document.getElementById('clearCompletedBtn');
+
+            if (!currentCategory) {
+                todoList.innerHTML = '<div class="empty-state">Select or create a category to start adding todos</div>';
+                statsText.innerHTML = '';
+                clearBtn.style.display = 'none';
+                return;
+            }
+
+            if (todos.length === 0) {
+                todoList.innerHTML = '<div class="empty-state">No todos in this category yet. Add one above!</div>';
+                statsText.innerHTML = '';
+                clearBtn.style.display = 'none';
+                return;
+            }
+
+            const completedCount = todos.filter(t => t.completed).length;
+            const showClearBtn = completedCount > 0;
+            clearBtn.style.display = showClearBtn ? 'block' : 'none';
+            clearBtn.disabled = !showClearBtn;
+
+            todoList.innerHTML = todos.map(todo => {
+                const isEditing = editingId === todo.id;
+                return `
+                    <li class="todo-item ${todo.completed ? 'completed' : ''}">
+                        <input type="checkbox" class="todo-checkbox"
+                               ${todo.completed ? 'checked' : ''}
+                               onchange="toggleTodo(${todo.id})">
+                        ${isEditing ?
+                            `<input type="text" class="todo-text editing"
+                                    value="${todo.text}"
+                                    onblur="saveEdit(${todo.id}, this.value)"
+                                    onkeydown="if(event.key==='Enter') saveEdit(${todo.id}, this.value); if(event.key==='Escape') cancelEdit()">` :
+                            `<span class="todo-text" onclick="startEdit(${todo.id})">${convertAllLinks(todo.text)}</span>`
+                        }
+                        <button class="edit-btn" onclick="startEdit(${todo.id})">Edit</button>
+                        <button class="delete-btn" onclick="deleteTodo(${todo.id})">Delete</button>
+                    </li>
+                `;
+            }).join('');
+
+            const completed = todos.filter(t => t.completed).length;
+            const total = todos.length;
+            statsText.innerHTML = `${completed} of ${total} completed`;
+        }
+
+        // Event listeners
+        document.getElementById('categoryInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') createCategory();
+        });
+
+        document.getElementById('todoInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') addTodo();
+        });
+
+        // Initialize app
+        loadCategories();
+    </script>
+</body>
+</html>

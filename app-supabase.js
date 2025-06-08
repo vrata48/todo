@@ -324,7 +324,7 @@ async function start() {
         await initDatabase();
 
         app.listen(PORT, () => {
-            console.log(`☁️  TODO App running on port ${PORT}`);
+            console.log(`☁️ TODO App running on port ${PORT}`);
             console.log(`🔑 App password: ${APP_PASSWORD}`);
             console.log(`💾 Database: Supabase PostgreSQL`);
             console.log(`🌐 ${process.env.NODE_ENV === 'production' ? 'Production' : 'Development'} mode`);

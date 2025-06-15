@@ -42,6 +42,86 @@
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </header>
 
+            <!-- Data Management Section - At the top for easy access -->
+            <section class="data-management-section">
+                <details class="data-management-details">
+                    <summary class="data-management-summary">
+                        💾 Data Management
+                    </summary>
+
+                    <div class="data-management-content">
+                        <!-- Export Section -->
+                        <div class="export-section">
+                            <h3>📤 Export Data</h3>
+                            <p class="export-description">Download your todos as a JSON file for backup or migration.</p>
+
+                            <div class="export-options">
+                                <label class="export-option">
+                                    <input type="checkbox" id="includeCompletedExport" checked>
+                                    <span>Include completed todos</span>
+                                </label>
+                            </div>
+
+                            <div class="export-actions">
+                                <button onclick="exportData()" class="export-btn">
+                                    📥 Export All Data
+                                </button>
+                                <button onclick="showExportStats()" class="stats-btn">
+                                    📊 View Stats
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Import Section -->
+                        <div class="import-section">
+                            <h3>📤 Import Data</h3>
+                            <p class="import-description">Import todos from a JSON export file.</p>
+
+                            <div class="import-file-area">
+                                <input type="file" id="importFile" accept=".json" class="import-file-input">
+                                <label for="importFile" class="import-file-label">
+                                    📄 Choose JSON file...
+                                </label>
+                                <div class="import-file-info" id="importFileInfo" style="display: none;"></div>
+                            </div>
+
+                            <div class="import-options" id="importOptions" style="display: none;">
+                                <h4>Import Options</h4>
+
+                                <div class="import-option-group">
+                                    <label class="import-strategy-label">Import Strategy:</label>
+                                    <select id="importStrategy" class="import-strategy-select">
+                                        <option value="replace">Replace existing data</option>
+                                        <option value="merge">Merge with existing data</option>
+                                        <option value="skip">Skip existing categories</option>
+                                    </select>
+                                </div>
+
+                                <div class="import-option-group">
+                                    <label class="import-option">
+                                        <input type="checkbox" id="skipCompleted">
+                                        <span>Skip completed todos</span>
+                                    </label>
+                                    <label class="import-option">
+                                        <input type="checkbox" id="overwriteExisting">
+                                        <span>Overwrite existing todos</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="import-actions" id="importActions" style="display: none;">
+                                <button onclick="previewImport()" class="preview-btn">
+                                    👁️ Preview Import
+                                </button>
+                                <button onclick="executeImport()" class="import-btn">
+                                    📤 Import Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </section>
+
             <!-- Category Creation -->
             <section class="category-creation">
                 <div class="input-group">
@@ -96,6 +176,52 @@
         </div>
     </div>
 
+    <!-- Export Stats Modal -->
+    <div id="statsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📊 Export Statistics</h3>
+                <button onclick="closeStatsModal()" class="modal-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="statsContent">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Preview Modal -->
+    <div id="importPreviewModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>👁️ Import Preview</h3>
+                <button onclick="closeImportPreviewModal()" class="modal-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="importPreviewContent">Loading...</div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeImportPreviewModal()" class="cancel-btn">Cancel</button>
+                <button onclick="executeImportFromPreview()" class="confirm-btn">Confirm Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Results Modal -->
+    <div id="importResultsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✅ Import Results</h3>
+                <button onclick="closeImportResultsModal()" class="modal-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="importResultsContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeImportResultsModal()" class="ok-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Global state
         let categories = [];
@@ -108,6 +234,10 @@
         let authToken = null;
         let draggedElement = null;
         let draggedIndex = -1;
+
+        // Global variables for import/export
+        let selectedImportFile = null;
+        let importPreviewData = null;
 
         // Authentication functions
         function getAuthToken() {
@@ -215,6 +345,391 @@
 
             return response;
         }
+
+        // Export functionality
+        async function exportData() {
+            try {
+                const includeCompleted = document.getElementById('includeCompletedExport').checked;
+                const response = await authenticatedFetch(`/api/export?includeCompleted=${includeCompleted}`);
+
+                if (!response.ok) {
+                    throw new Error('Export failed');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `todo-export-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                showNotification('Export completed successfully!', 'success');
+            } catch (error) {
+                console.error('Export error:', error);
+                showNotification('Export failed. Please try again.', 'error');
+            }
+        }
+
+        async function showExportStats() {
+            try {
+                const response = await authenticatedFetch('/api/export/stats');
+                const stats = await response.json();
+
+                const statsHtml = `
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">${stats.totalCategories}</div>
+                            <div class="stat-label">Categories</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${stats.totalTodos}</div>
+                            <div class="stat-label">Total Todos</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${stats.completedTodos}</div>
+                            <div class="stat-label">Completed</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${stats.openTodos}</div>
+                            <div class="stat-label">Open</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${stats.urgentTodos}</div>
+                            <div class="stat-label">Urgent</div>
+                        </div>
+                    </div>
+                    <div class="stats-details">
+                        <p><strong>Oldest Todo:</strong> ${stats.oldestTodo ? new Date(stats.oldestTodo).toLocaleDateString() : 'N/A'}</p>
+                        <p><strong>Newest Todo:</strong> ${stats.newestTodo ? new Date(stats.newestTodo).toLocaleDateString() : 'N/A'}</p>
+                        <p><strong>Supported Formats:</strong> ${stats.exportFormats.join(', ')}</p>
+                        <p><strong>Data Version:</strong> ${stats.supportedVersions[0]}</p>
+                    </div>
+                `;
+
+                document.getElementById('statsContent').innerHTML = statsHtml;
+                document.getElementById('statsModal').style.display = 'block';
+            } catch (error) {
+                console.error('Stats error:', error);
+                showNotification('Failed to load statistics.', 'error');
+            }
+        }
+
+        // Import functionality
+        document.getElementById('importFile').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                selectedImportFile = file;
+
+                const fileInfo = document.getElementById('importFileInfo');
+                fileInfo.innerHTML = `
+                    <div class="file-info">
+                        <strong>Selected file:</strong> ${file.name}<br>
+                        <strong>Size:</strong> ${(file.size / 1024).toFixed(2)} KB<br>
+                        <strong>Modified:</strong> ${new Date(file.lastModified).toLocaleDateString()}
+                    </div>
+                `;
+                fileInfo.style.display = 'block';
+
+                document.getElementById('importOptions').style.display = 'block';
+                document.getElementById('importActions').style.display = 'block';
+            }
+        });
+
+        async function previewImport() {
+            if (!selectedImportFile) {
+                showNotification('Please select a file first.', 'error');
+                return;
+            }
+
+            try {
+                const fileContent = await readFileAsText(selectedImportFile);
+                const importData = JSON.parse(fileContent);
+
+                importPreviewData = importData;
+
+                // Validate data structure
+                if (!importData.version || !importData.categories) {
+                    throw new Error('Invalid file format');
+                }
+
+                const previewHtml = generateImportPreview(importData);
+                document.getElementById('importPreviewContent').innerHTML = previewHtml;
+                document.getElementById('importPreviewModal').style.display = 'block';
+
+            } catch (error) {
+                console.error('Preview error:', error);
+                showNotification('Invalid file format or corrupted data.', 'error');
+            }
+        }
+
+        function generateImportPreview(data) {
+            const categories = Object.keys(data.categories);
+            const totalTodos = Object.values(data.categories).reduce((sum, cat) => sum + cat.todos.length, 0);
+            const totalCompleted = Object.values(data.categories).reduce((sum, cat) =>
+                sum + cat.todos.filter(t => t.completed).length, 0);
+            const totalUrgent = Object.values(data.categories).reduce((sum, cat) =>
+                sum + cat.todos.filter(t => t.urgent).length, 0);
+
+            let html = `
+                <div class="import-preview">
+                    <div class="preview-summary">
+                        <h4>Import Summary</h4>
+                        <div class="preview-stats">
+                            <div class="preview-stat">
+                                <span class="stat-value">${categories.length}</span>
+                                <span class="stat-label">Categories</span>
+                            </div>
+                            <div class="preview-stat">
+                                <span class="stat-value">${totalTodos}</span>
+                                <span class="stat-label">Total Todos</span>
+                            </div>
+                            <div class="preview-stat">
+                                <span class="stat-value">${totalCompleted}</span>
+                                <span class="stat-label">Completed</span>
+                            </div>
+                            <div class="preview-stat">
+                                <span class="stat-value">${totalUrgent}</span>
+                                <span class="stat-label">Urgent</span>
+                            </div>
+                        </div>
+                        <div class="preview-metadata">
+                            <p><strong>Export Date:</strong> ${new Date(data.exportDate).toLocaleString()}</p>
+                            <p><strong>Version:</strong> ${data.version}</p>
+                        </div>
+                    </div>
+
+                    <div class="preview-categories">
+                        <h4>Categories to Import</h4>
+                        <div class="category-list">
+            `;
+
+            categories.forEach(categoryName => {
+                const category = data.categories[categoryName];
+                html += `
+                    <div class="preview-category">
+                        <div class="category-header">
+                            <strong>${categoryName}</strong>
+                            <span class="category-count">${category.todos.length} todos</span>
+                        </div>
+                        <div class="category-preview-todos">
+                            ${category.todos.slice(0, 3).map(todo => `
+                                <div class="preview-todo ${todo.completed ? 'completed' : ''} ${todo.urgent ? 'urgent' : ''}">
+                                    ${todo.urgent ? '🔥 ' : ''}${todo.text}
+                                    ${todo.completed ? ' ✓' : ''}
+                                </div>
+                            `).join('')}
+                            ${category.todos.length > 3 ? `<div class="preview-more">... and ${category.todos.length - 3} more</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            return html;
+        }
+
+        async function executeImport() {
+            if (!selectedImportFile) {
+                showNotification('Please select a file first.', 'error');
+                return;
+            }
+
+            try {
+                const fileContent = await readFileAsText(selectedImportFile);
+                const importData = JSON.parse(fileContent);
+
+                const options = {
+                    mergeStrategy: document.getElementById('importStrategy').value,
+                    skipCompleted: document.getElementById('skipCompleted').checked,
+                    overwriteExisting: document.getElementById('overwriteExisting').checked
+                };
+
+                const response = await authenticatedFetch('/api/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: importData, options })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showImportResults(result);
+                    // Refresh the app data
+                    await loadCategories();
+                    if (currentCategory) {
+                        await selectCategory(currentCategory);
+                    }
+                } else {
+                    throw new Error(result.error || 'Import failed');
+                }
+
+            } catch (error) {
+                console.error('Import error:', error);
+                showNotification('Import failed: ' + error.message, 'error');
+            }
+        }
+
+        async function executeImportFromPreview() {
+            if (!importPreviewData) {
+                showNotification('No data to import.', 'error');
+                return;
+            }
+
+            closeImportPreviewModal();
+
+            const options = {
+                mergeStrategy: document.getElementById('importStrategy').value,
+                skipCompleted: document.getElementById('skipCompleted').checked,
+                overwriteExisting: document.getElementById('overwriteExisting').checked
+            };
+
+            try {
+                const response = await authenticatedFetch('/api/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: importPreviewData, options })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showImportResults(result);
+                    // Refresh the app data
+                    await loadCategories();
+                    if (currentCategory) {
+                        await selectCategory(currentCategory);
+                    }
+                } else {
+                    throw new Error(result.error || 'Import failed');
+                }
+
+            } catch (error) {
+                console.error('Import error:', error);
+                showNotification('Import failed: ' + error.message, 'error');
+            }
+        }
+
+        function showImportResults(result) {
+            const resultsHtml = `
+                <div class="import-results">
+                    <div class="results-summary">
+                        <h4>${result.success ? '✅ Import Successful!' : '❌ Import Failed'}</h4>
+                        <p>${result.message}</p>
+                    </div>
+
+                    <div class="results-details">
+                        <div class="result-stat">
+                            <span class="result-label">Categories Processed:</span>
+                            <span class="result-value">${result.results.categoriesProcessed}</span>
+                        </div>
+                        <div class="result-stat">
+                            <span class="result-label">Categories Created:</span>
+                            <span class="result-value">${result.results.categoriesCreated}</span>
+                        </div>
+                        <div class="result-stat">
+                            <span class="result-label">Categories Skipped:</span>
+                            <span class="result-value">${result.results.categoriesSkipped}</span>
+                        </div>
+                        <div class="result-stat">
+                            <span class="result-label">Todos Imported:</span>
+                            <span class="result-value">${result.results.todosImported}</span>
+                        </div>
+                        <div class="result-stat">
+                            <span class="result-label">Todos Skipped:</span>
+                            <span class="result-value">${result.results.todosSkipped}</span>
+                        </div>
+                    </div>
+
+                    ${result.results.errors.length > 0 ? `
+                        <div class="results-errors">
+                            <h5>Errors:</h5>
+                            ${result.results.errors.map(error => `
+                                <div class="error-item">
+                                    <strong>${error.category}:</strong> ${error.error}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+
+                    <div class="results-metadata">
+                        <p><strong>Imported from:</strong> Version ${result.importedFrom.version}</p>
+                        <p><strong>Export Date:</strong> ${new Date(result.importedFrom.exportDate).toLocaleString()}</p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('importResultsContent').innerHTML = resultsHtml;
+            document.getElementById('importResultsModal').style.display = 'block';
+        }
+
+        // Utility functions
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = e => reject(e);
+                reader.readAsText(file);
+            });
+        }
+
+        function showNotification(message, type = 'info') {
+            // Create a simple notification system
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 4000);
+        }
+
+        // Modal controls
+        function closeStatsModal() {
+            document.getElementById('statsModal').style.display = 'none';
+        }
+
+        function closeImportPreviewModal() {
+            document.getElementById('importPreviewModal').style.display = 'none';
+            importPreviewData = null;
+        }
+
+        function closeImportResultsModal() {
+            document.getElementById('importResultsModal').style.display = 'none';
+            // Reset import form
+            document.getElementById('importFile').value = '';
+            document.getElementById('importFileInfo').style.display = 'none';
+            document.getElementById('importOptions').style.display = 'none';
+            document.getElementById('importActions').style.display = 'none';
+            selectedImportFile = null;
+        }
+
+        // Close modals when clicking outside
+        window.addEventListener('click', function(event) {
+            const modals = ['statsModal', 'importPreviewModal', 'importResultsModal'];
+            modals.forEach(modalId => {
+                const modal = document.getElementById(modalId);
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
 
         // Category functions
         async function loadCategories() {

@@ -70,6 +70,10 @@
             <section class="todo-creation" id="todoCreation" style="display: none;">
                 <div class="input-group">
                     <input type="text" id="todoInput" placeholder="What needs to be done?" />
+                    <label class="urgent-checkbox">
+                        <input type="checkbox" id="urgentCheckbox" />
+                        <span class="urgent-label">🔥 Urgent</span>
+                    </label>
                     <button onclick="addTodo()" class="add-btn">Add Todo</button>
                 </div>
             </section>
@@ -77,6 +81,7 @@
             <!-- Todo List -->
             <main class="todo-main">
                 <ul class="todo-list" id="todoList"></ul>
+                <div id="dragIndicator" class="drag-indicator" style="display: none;"></div>
             </main>
 
             <!-- Footer Stats -->
@@ -101,6 +106,8 @@
         let categoryCounts = {};
         let renamingCategory = false;
         let authToken = null;
+        let draggedElement = null;
+        let draggedIndex = -1;
 
         // Authentication functions
         function getAuthToken() {
@@ -322,6 +329,16 @@
                 const data = await response.json();
                 todos = data.todos || [];
                 nextId = data.nextId || 1;
+
+                // Add urgent flag and position to existing todos that don't have them
+                todos = todos.map(todo => ({
+                    ...todo,
+                    urgent: todo.urgent !== undefined ? todo.urgent : false,
+                    position: todo.position !== undefined ? todo.position : todo.id
+                }));
+
+                // Sort by urgent first, then by position
+                sortTodos();
                 renderTodos();
             } catch (error) {
                 console.error('Failed to load todos:', error);
@@ -329,6 +346,17 @@
                 nextId = 1;
                 renderTodos();
             }
+        }
+
+        function sortTodos() {
+            todos.sort((a, b) => {
+                // First sort by urgent (urgent first)
+                if (a.urgent && !b.urgent) return -1;
+                if (!a.urgent && b.urgent) return 1;
+
+                // Then sort by position
+                return a.position - b.position;
+            });
         }
 
         async function saveTodos(category = currentCategory, todosToSave = todos, nextIdToSave = nextId) {
@@ -365,17 +393,25 @@
 
         async function addTodo() {
             const input = document.getElementById('todoInput');
+            const urgentCheckbox = document.getElementById('urgentCheckbox');
             const text = input.value.trim();
+            const urgent = urgentCheckbox.checked;
 
             if (text === '' || !currentCategory) return;
 
-            todos.push({
+            const newTodo = {
                 id: nextId++,
                 text: text,
-                completed: false
-            });
+                completed: false,
+                urgent: urgent,
+                position: todos.length + 1
+            };
+
+            todos.push(newTodo);
+            sortTodos();
 
             input.value = '';
+            urgentCheckbox.checked = false; // Reset to default
             await saveTodos();
             renderTodos();
         }
@@ -401,6 +437,98 @@
                 await saveTodos();
                 renderTodos();
             }
+        }
+
+        // Urgent flag functions
+        async function toggleUrgent(id) {
+            const todo = todos.find(t => t.id === id);
+            if (todo) {
+                todo.urgent = !todo.urgent;
+                sortTodos();
+                await saveTodos();
+                renderTodos();
+            }
+        }
+
+        // Drag and Drop functions
+        function handleDragStart(e) {
+            draggedElement = e.target.closest('.todo-item');
+            draggedIndex = Array.from(draggedElement.parentNode.children).indexOf(draggedElement);
+
+            draggedElement.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', draggedElement.outerHTML);
+        }
+
+        function handleDragEnd(e) {
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+            }
+
+            // Remove all drag indicators
+            document.querySelectorAll('.todo-item').forEach(item => {
+                item.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
+
+            draggedElement = null;
+            draggedIndex = -1;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+
+            const targetItem = e.target.closest('.todo-item');
+            if (!targetItem || targetItem === draggedElement) return;
+
+            // Remove all previous indicators
+            document.querySelectorAll('.todo-item').forEach(item => {
+                item.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
+
+            // Calculate if we should insert above or below
+            const rect = targetItem.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+
+            if (e.clientY < midpoint) {
+                targetItem.classList.add('drag-over-top');
+            } else {
+                targetItem.classList.add('drag-over-bottom');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+
+            const targetItem = e.target.closest('.todo-item');
+            if (!targetItem || targetItem === draggedElement) return;
+
+            const targetIndex = Array.from(targetItem.parentNode.children).indexOf(targetItem);
+            const rect = targetItem.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+            const insertAfter = e.clientY >= midpoint;
+
+            // Move the todo in the array
+            const draggedTodo = todos[draggedIndex];
+            todos.splice(draggedIndex, 1);
+
+            let newIndex = targetIndex;
+            if (draggedIndex < targetIndex) {
+                newIndex = insertAfter ? targetIndex : targetIndex - 1;
+            } else {
+                newIndex = insertAfter ? targetIndex + 1 : targetIndex;
+            }
+
+            todos.splice(newIndex, 0, draggedTodo);
+
+            // Update order values
+            todos.forEach((todo, index) => {
+                todo.position = index + 1;
+            });
+
+            // Save and re-render
+            saveTodos();
+            renderTodos();
         }
 
         // Edit functions
@@ -606,10 +734,30 @@
             clearBtn.style.display = showClearBtn ? 'inline-block' : 'none';
             clearBtn.disabled = !showClearBtn;
 
-            todoList.innerHTML = todos.map(todo => {
+            todoList.innerHTML = todos.map((todo, index) => {
                 const isEditing = editingId === todo.id;
+
                 return `
-                    <li class="todo-item ${todo.completed ? 'completed' : ''}">
+                    <li class="todo-item ${todo.completed ? 'completed' : ''} ${todo.urgent ? 'urgent' : ''}"
+                        draggable="true"
+                        data-todo-id="${todo.id}"
+                        data-index="${index}"
+                        ondragstart="handleDragStart(event)"
+                        ondragend="handleDragEnd(event)"
+                        ondragover="handleDragOver(event)"
+                        ondrop="handleDrop(event)">
+
+                        <div class="todo-drag-handle">⋮⋮</div>
+
+                        <div class="todo-urgent">
+                            <button class="urgent-toggle ${todo.urgent ? 'active' : ''}"
+                                    onclick="toggleUrgent(${todo.id})"
+                                    title="${todo.urgent ? 'Remove urgent flag' : 'Mark as urgent'}"
+                                    ${todo.completed ? 'disabled' : ''}>
+                                ${todo.urgent ? '🔥' : '⚪'}
+                            </button>
+                        </div>
+
                         <div class="todo-content">
                             <input type="checkbox" class="todo-checkbox"
                                    ${todo.completed ? 'checked' : ''}
@@ -668,12 +816,26 @@
             initApp();
         });
 
-        // Register Service Worker for PWA
+        // Register minimal Service Worker for PWA (installable but no caching)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
                     .then((registration) => {
-                        console.log('SW registered: ', registration);
+                        console.log('Minimal SW registered for PWA install capability');
+
+                        // Always update to get latest SW
+                        registration.update();
+
+                        // Handle SW updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New SW is available, activate it immediately
+                                    newWorker.postMessage({type: 'SKIP_WAITING'});
+                                }
+                            });
+                        });
                     })
                     .catch((registrationError) => {
                         console.log('SW registration failed: ', registrationError);

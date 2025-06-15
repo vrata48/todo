@@ -1,5 +1,5 @@
 /* Universal button reset */
-button, input[type="text"] {
+button, input[type="text"], select {
     height: 36px !important;
     box-sizing: border-box !important;
     padding: 8px 16px !important;
@@ -13,19 +13,88 @@ button, input[type="text"] {
     transition: all 0.2s !important;
 }
 
-input[type="text"] {
+input[type="text"], select {
     border: 2px solid #e5e7eb !important;
     background: white !important;
     color: #333 !important;
 }
 
-input[type="text"]:focus {
+input[type="text"]:focus, select:focus {
     border-color: #2563eb !important;
 }
 
 button {
     cursor: pointer !important;
     font-weight: 500 !important;
+}
+
+/* Urgent checkbox styling */
+.urgent-checkbox {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    padding: 8px 12px !important;
+    border-radius: 6px !important;
+    background: #f9fafb !important;
+    border: 2px solid #e5e7eb !important;
+    transition: all 0.2s !important;
+    height: 36px !important;
+    box-sizing: border-box !important;
+}
+
+.urgent-checkbox:hover {
+    background: #fef3c7 !important;
+    border-color: #f59e0b !important;
+}
+
+.urgent-checkbox input[type="checkbox"] {
+    width: 16px !important;
+    height: 16px !important;
+    margin: 0 !important;
+    cursor: pointer !important;
+}
+
+.urgent-checkbox input[type="checkbox"]:checked + .urgent-label {
+    color: #dc2626 !important;
+    font-weight: 600 !important;
+}
+
+.urgent-label {
+    font-size: 14px !important;
+    color: #6b7280 !important;
+    transition: color 0.2s !important;
+}
+
+.urgent-toggle {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 50% !important;
+    border: 2px solid #e5e7eb !important;
+    background: white !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+    font-size: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+}
+
+.urgent-toggle:hover {
+    border-color: #f59e0b !important;
+    background: #fffbeb !important;
+}
+
+.urgent-toggle.active {
+    border-color: #dc2626 !important;
+    background: #fef2f2 !important;
+}
+
+.urgent-toggle:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
 }
 
 /* Body and layout */
@@ -186,258 +255,6 @@ body {
     background: #4b5563 !important;
 }
 
-/* Mobile responsiveness */
-@media (max-width: 768px) {
-    body {
-        margin: 0;
-        padding: 0;
-        font-size: 16px; /* Prevent zoom on iOS */
-    }
-
-    .container {
-        border-radius: 0;
-        padding: 15px;
-        box-shadow: none;
-        min-height: 100vh;
-        max-width: 100%;
-        margin: 0;
-    }
-
-    .login-form {
-        padding: 32px 24px;
-        margin: 0 16px;
-        max-width: none;
-        width: calc(100% - 32px);
-    }
-
-    .login-form h1 {
-        font-size: 24px;
-        margin-bottom: 24px;
-    }
-
-    .password-input {
-        padding: 18px 16px;
-        font-size: 16px;
-        border-radius: 10px;
-    }
-
-    .login-btn {
-        padding: 18px 24px;
-        font-size: 16px;
-        border-radius: 10px;
-    }
-
-    .app-header {
-        flex-direction: row; /* Keep header horizontal */
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-
-    .app-header h1 {
-        font-size: 24px;
-        margin: 0;
-        flex: 1;
-    }
-
-    .logout-btn {
-        padding: 8px 16px;
-        font-size: 14px;
-        height: 36px;
-    }
-
-    /* Make buttons more touch-friendly */
-    button, input[type="text"] {
-        height: 44px !important;
-        font-size: 16px !important;
-        touch-action: manipulation;
-        border-radius: 8px !important;
-    }
-
-    .category-tab {
-        height: 44px !important;
-        min-width: 80px;
-        padding: 6px 12px;
-        font-size: 13px;
-    }
-
-    .category-tabs {
-        gap: 6px;
-        padding-bottom: 12px;
-        margin-bottom: 16px;
-        flex-wrap: wrap;
-    }
-
-    .new-category {
-        flex-direction: row; /* Keep horizontal */
-        gap: 8px;
-        margin-bottom: 16px;
-    }
-
-    .new-category input {
-        flex: 1;
-        box-sizing: border-box;
-    }
-
-    .new-category button {
-        flex: 0 0 auto;
-        white-space: nowrap;
-    }
-
-    .current-category {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 12px;
-        margin-bottom: 16px;
-    }
-
-    .current-category h2 {
-        text-align: center;
-        margin-bottom: 0;
-        padding: 8px 12px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        font-size: 18px;
-    }
-
-    .category-actions {
-        display: flex;
-        gap: 8px;
-        justify-content: center;
-    }
-
-    .rename-btn, .delete-category-btn {
-        height: 36px;
-        font-size: 14px;
-        flex: 0 0 auto;
-        padding: 8px 16px;
-    }
-
-    .add-todo {
-        flex-direction: row; /* Keep horizontal */
-        gap: 8px;
-        margin-bottom: 20px;
-    }
-
-    .add-todo input {
-        flex: 1;
-        box-sizing: border-box;
-    }
-
-    .add-todo button {
-        flex: 0 0 auto;
-        white-space: nowrap;
-    }
-
-    .todo-item {
-        padding: 12px;
-        margin-bottom: 8px;
-        flex-direction: row; /* Keep horizontal layout */
-        align-items: center;
-        gap: 12px;
-        border-radius: 8px;
-    }
-
-    .todo-checkbox {
-        width: 24px;
-        height: 24px;
-        margin: 0;
-        flex: 0 0 auto;
-    }
-
-    .todo-text {
-        font-size: 16px;
-        line-height: 1.4;
-        flex: 1;
-        padding: 4px 0;
-    }
-
-    .todo-text.editing {
-        height: 40px;
-        padding: 8px 12px;
-        font-size: 16px;
-        border-radius: 6px;
-    }
-
-    .todo-item-actions {
-        display: flex;
-        gap: 6px;
-        flex: 0 0 auto;
-    }
-
-    .edit-btn, .delete-btn {
-        height: 36px;
-        font-size: 13px;
-        border-radius: 6px;
-        padding: 8px 12px;
-        white-space: nowrap;
-    }
-
-    .stats {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 12px;
-        text-align: center;
-        margin-top: 16px;
-    }
-
-    .clear-completed-btn {
-        width: 100%;
-        height: 44px;
-        font-size: 14px;
-        border-radius: 8px;
-    }
-
-    .empty-state {
-        padding: 24px 16px;
-        font-size: 16px;
-        line-height: 1.5;
-    }
-
-    /* Better link styling on mobile */
-    .demp-link, .http-link {
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 14px;
-        display: inline;
-    }
-}
-
-/* Very small screens - only then stack some elements */
-@media (max-width: 480px) {
-    .new-category {
-        flex-direction: column;
-    }
-
-    .new-category button {
-        width: 100%;
-    }
-
-    .add-todo {
-        flex-direction: column;
-    }
-
-    .add-todo button {
-        width: 100%;
-    }
-
-    .todo-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-
-    .todo-item-actions {
-        width: 100%;
-        justify-content: stretch;
-    }
-
-    .edit-btn, .delete-btn {
-        flex: 1;
-        height: 40px;
-    }
-}
-
 .container {
     background: white;
     border-radius: 12px;
@@ -559,6 +376,25 @@ h1 {
     flex: 1 !important;
 }
 
+/* Input group styling */
+.input-group {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.input-group input[type="text"] {
+    flex: 1;
+}
+
+.input-group select {
+    flex: 0 0 auto;
+}
+
+.input-group button {
+    flex: 0 0 auto;
+}
+
 /* Todo list */
 .todo-list {
     list-style: none;
@@ -569,17 +405,20 @@ h1 {
 .todo-item {
     display: flex;
     align-items: center;
-    padding: 16px;
+    padding: 12px;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     margin-bottom: 8px;
     background: #fafafa;
     transition: all 0.2s;
     gap: 8px;
+    cursor: move;
+    position: relative;
 }
 
 .todo-item:hover {
     background: #f3f4f6;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .todo-item.completed {
@@ -592,11 +431,69 @@ h1 {
     color: #6b7280;
 }
 
+/* Urgent todo styling */
+.todo-item.urgent {
+    border-left: 4px solid #dc2626;
+    background: linear-gradient(90deg, #fef2f2 0%, #fafafa 100%);
+}
+
+.todo-item.urgent:hover {
+    background: linear-gradient(90deg, #fecaca 0%, #f3f4f6 100%);
+}
+
+/* Drag and Drop Styling */
+.todo-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+    z-index: 1000;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
+
+.todo-item.drag-over-top {
+    border-top: 3px solid #2563eb;
+}
+
+.todo-item.drag-over-bottom {
+    border-bottom: 3px solid #2563eb;
+}
+
+.todo-drag-handle {
+    color: #9ca3af;
+    font-size: 12px;
+    cursor: grab;
+    padding: 4px;
+    margin-right: 4px;
+    user-select: none;
+    line-height: 1;
+}
+
+.todo-drag-handle:hover {
+    color: #6b7280;
+}
+
+.todo-item.dragging .todo-drag-handle {
+    cursor: grabbing;
+}
+
+/* Urgent styling */
+.todo-urgent {
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
+}
+
 .todo-checkbox {
     margin-right: 12px;
     width: 18px;
     height: 18px;
     cursor: pointer;
+}
+
+.todo-content {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 12px;
 }
 
 .todo-text {
@@ -622,6 +519,12 @@ h1 {
     display: inline-flex;
     align-items: center;
     padding: 8px;
+}
+
+.todo-actions {
+    display: flex;
+    gap: 4px;
+    flex: 0 0 auto;
 }
 
 /* Links */
@@ -734,4 +637,259 @@ h1 {
 
 .rename-btn:hover {
     background: #4f46e5 !important;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    body {
+        margin: 0;
+        padding: 0;
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+
+    .container {
+        border-radius: 0;
+        padding: 15px;
+        box-shadow: none;
+        min-height: 100vh;
+        max-width: 100%;
+        margin: 0;
+    }
+
+    .login-form {
+        padding: 32px 24px;
+        margin: 0 16px;
+        max-width: none;
+        width: calc(100% - 32px);
+    }
+
+    .login-form h1 {
+        font-size: 24px;
+        margin-bottom: 24px;
+    }
+
+    .password-input {
+        padding: 18px 16px;
+        font-size: 16px;
+        border-radius: 10px;
+    }
+
+    .login-btn {
+        padding: 18px 24px;
+        font-size: 16px;
+        border-radius: 10px;
+    }
+
+    .app-header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .app-header h1 {
+        font-size: 24px;
+        margin: 0;
+        flex: 1;
+    }
+
+    .logout-btn {
+        padding: 8px 16px;
+        font-size: 14px;
+        height: 36px;
+    }
+
+    /* Make buttons more touch-friendly */
+    button, input[type="text"], select {
+        height: 44px !important;
+        font-size: 16px !important;
+        touch-action: manipulation;
+        border-radius: 8px !important;
+    }
+
+    .urgent-checkbox {
+        flex-direction: row !important;
+        justify-content: center !important;
+        padding: 12px 16px !important;
+        height: 44px !important;
+    }
+
+    .urgent-toggle {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 18px !important;
+    }
+
+    .category-tab {
+        height: 44px !important;
+        min-width: 80px;
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+
+    .category-tabs {
+        gap: 6px;
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+
+    .input-group {
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+    }
+
+    .input-group input, .input-group select, .input-group button {
+        width: 100%;
+        flex: none;
+    }
+
+    .current-category {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .current-category h2 {
+        text-align: center;
+        margin-bottom: 0;
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        font-size: 18px;
+    }
+
+    .category-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+    }
+
+    .rename-btn, .delete-category-btn {
+        height: 36px;
+        font-size: 14px;
+        flex: 0 0 auto;
+        padding: 8px 16px;
+    }
+
+    .todo-item {
+        padding: 12px;
+        margin-bottom: 8px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        border-radius: 8px;
+    }
+
+    .todo-item-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .todo-drag-handle {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    .todo-urgent {
+        margin-right: 0;
+        margin-bottom: 4px;
+    }
+
+    .todo-content {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .todo-checkbox {
+        width: 24px;
+        height: 24px;
+        margin: 0;
+        flex: 0 0 auto;
+    }
+
+    .todo-text {
+        font-size: 16px;
+        line-height: 1.4;
+        flex: 1;
+        padding: 4px 0;
+    }
+
+    .todo-text.editing {
+        height: 40px;
+        padding: 8px 12px;
+        font-size: 16px;
+        border-radius: 6px;
+    }
+
+    .todo-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: stretch;
+        margin-top: 8px;
+    }
+
+    .edit-btn, .delete-btn {
+        height: 36px;
+        font-size: 13px;
+        border-radius: 6px;
+        padding: 8px 12px;
+        white-space: nowrap;
+        flex: 1;
+    }
+
+    .stats {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        text-align: center;
+        margin-top: 16px;
+    }
+
+    .clear-completed-btn {
+        width: 100%;
+        height: 44px;
+        font-size: 14px;
+        border-radius: 8px;
+    }
+
+    .empty-state {
+        padding: 24px 16px;
+        font-size: 16px;
+        line-height: 1.5;
+    }
+
+    /* Better link styling on mobile */
+    .depm-link, .http-link {
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 14px;
+        display: inline;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 480px) {
+    .todo-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .todo-content {
+        width: 100%;
+    }
+
+    .todo-actions {
+        width: 100%;
+        gap: 8px;
+    }
+
+    .edit-btn, .delete-btn {
+        flex: 1;
+        height: 40px;
+    }
 }

@@ -1,4 +1,4 @@
-// app-supabase.js - Universal app with Supabase PostgreSQL
+// app-supabase.js - Universal app with Supabase PostgreSQL + Priority & Order
 require('dotenv').config(); // Load .env file
 
 const express = require('express');
@@ -31,9 +31,9 @@ async function initDatabase() {
 
         // Test connection
         await pool.query('SELECT NOW()');
-        console.log('✅ Connected to Supabase PostgreSQL');
+        console.log('🟩 Connected to Supabase PostgreSQL');
 
-        // Create tables if they don't exist
+        // Create categories table
         await pool.query(`
             CREATE TABLE IF NOT EXISTS categories (
                 id SERIAL PRIMARY KEY,
@@ -42,6 +42,7 @@ async function initDatabase() {
             )
         `);
 
+        // Create todos table with urgent flag and position fields
         await pool.query(`
             CREATE TABLE IF NOT EXISTS todos (
                 id SERIAL PRIMARY KEY,
@@ -49,9 +50,19 @@ async function initDatabase() {
                 text TEXT NOT NULL,
                 completed BOOLEAN DEFAULT FALSE,
                 todo_id INTEGER NOT NULL,
+                urgent BOOLEAN DEFAULT FALSE,
+                position INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+
+        // Add new columns if they don't exist (for existing databases)
+        try {
+            await pool.query(`ALTER TABLE todos ADD COLUMN IF NOT EXISTS urgent BOOLEAN DEFAULT FALSE`);
+            await pool.query(`ALTER TABLE todos ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0`);
+        } catch (error) {
+            // Columns might already exist, ignore error
+        }
 
         // Create indexes for better performance
         await pool.query(`
@@ -64,7 +75,12 @@ async function initDatabase() {
             ON todos(category_name, todo_id)
         `);
 
-        console.log('✅ Database tables initialized');
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_todos_urgent_position 
+            ON todos(category_name, urgent, position)
+        `);
+
+        console.log('🟩 Database tables initialized');
     } catch (error) {
         console.error('❌ Database initialization error:', error);
         throw error;
@@ -136,11 +152,20 @@ app.get('/api/todos/:category', async (req, res) => {
     try {
         const { category } = req.params;
 
-        // Get todos
-        const todosResult = await pool.query(
-            'SELECT todo_id as id, text, completed FROM todos WHERE category_name = $1 ORDER BY todo_id',
-            [category]
-        );
+        // Get todos with urgent flag and position
+        const todosResult = await pool.query(`
+            SELECT 
+                todo_id as id, 
+                text, 
+                completed, 
+                COALESCE(urgent, FALSE) as urgent,
+                COALESCE(position, todo_id) as position
+            FROM todos 
+            WHERE category_name = $1 
+            ORDER BY 
+                urgent DESC,
+                COALESCE(position, todo_id)
+        `, [category]);
 
         // Get max ID for next todo
         const maxIdResult = await pool.query(
@@ -151,7 +176,9 @@ app.get('/api/todos/:category', async (req, res) => {
         const todos = todosResult.rows.map(row => ({
             id: row.id,
             text: row.text,
-            completed: row.completed
+            completed: row.completed,
+            urgent: row.urgent,
+            position: row.position
         }));
 
         const nextId = (maxIdResult.rows[0].max_id || 0) + 1;
@@ -182,12 +209,19 @@ app.post('/api/todos/:category', async (req, res) => {
         // Clear existing todos for this category
         await client.query('DELETE FROM todos WHERE category_name = $1', [category]);
 
-        // Insert new todos
+        // Insert new todos with urgent flag and position
         for (const todo of todos) {
-            await client.query(
-                'INSERT INTO todos (category_name, todo_id, text, completed) VALUES ($1, $2, $3, $4)',
-                [category, todo.id, todo.text, todo.completed]
-            );
+            await client.query(`
+                INSERT INTO todos (category_name, todo_id, text, completed, urgent, position) 
+                VALUES ($1, $2, $3, $4, $5, $6)
+            `, [
+                category,
+                todo.id,
+                todo.text,
+                todo.completed,
+                todo.urgent || false,
+                todo.position || todo.id
+            ]);
         }
 
         await client.query('COMMIT');
@@ -276,12 +310,19 @@ app.post('/api/sync/upload', async (req, res) => {
             // Clear existing todos for this category
             await client.query('DELETE FROM todos WHERE category_name = $1', [categoryName]);
 
-            // Insert todos
+            // Insert todos with urgent flag support
             for (const todo of categoryData.todos) {
-                await client.query(
-                    'INSERT INTO todos (category_name, todo_id, text, completed) VALUES ($1, $2, $3, $4)',
-                    [categoryName, todo.id, todo.text, todo.completed]
-                );
+                await client.query(`
+                    INSERT INTO todos (category_name, todo_id, text, completed, urgent, position) 
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                `, [
+                    categoryName,
+                    todo.id,
+                    todo.text,
+                    todo.completed,
+                    todo.urgent || false,
+                    todo.position || todo.id
+                ]);
             }
 
             syncedCategories++;
@@ -339,7 +380,7 @@ async function start() {
 process.on('SIGINT', async () => {
     console.log('\n🔄 Shutting down gracefully...');
     await pool.end();
-    console.log('✅ Database connections closed');
+    console.log('🟩 Database connections closed');
     process.exit(0);
 });
 
